@@ -1,0 +1,17 @@
+{
+  "Eudynamys scolopaceus": {
+    "appearance": "Males are glossy blue-black with a pale greenish bill and red eyes. Females are brown with white spots and bars.",
+    "sound": "A loud, rising 'ku-oo, ku-oo' repeated again and again, especially in the breeding season.",
+    "fun_fact": "Koels lay their eggs in crow nests and leave the crows to raise the chicks."
+  },
+  "Acridotheres tristis": {
+    "appearance": "Brown body with a black head, yellow bill, and a bare yellow patch behind the eye. White wing patches show in flight.",
+    "sound": "Noisy and chatty, with squeaks, chirps, and gurgles, often calling in groups.",
+    "fun_fact": "Common Mynas are very social and gather in large noisy roosts in the evening."
+  },
+  "Copsychus fulicatus": {
+    "appearance": "Males are black with a white shoulder patch and a chestnut patch under the tail. Females are brown.",
+    "sound": "A clear, whistling song, often sung from a perch with the tail cocked up.",
+    "fun_fact": "It often holds its tail upright and flicks it while hopping on the ground."
+  }
+}

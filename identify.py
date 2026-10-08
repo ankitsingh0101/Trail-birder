@@ -1,3 +1,4 @@
+import json
 import sys
 
 import birdnet
@@ -34,12 +35,23 @@ def identify(audio_file):
     }
 
 
+def load_facts():
+    with open("facts.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def field_note(bird):
+    facts = load_facts().get(bird["scientific"])
+    if facts is None:
+        return "(No verified facts for this species yet, so no field note.)"
+
     prompt = (
-        f"You are a friendly field guide. A birder just heard a "
-        f"{bird['common']} ({bird['scientific']}). In 3 short sentences: "
-        f"describe how it looks, what its sound is like, and one fun fact. "
-        f"Keep it simple and warm."
+        f"You are a friendly field guide. Write 3 short, warm sentences about "
+        f"the {bird['common']} for a birder who just heard it. "
+        f"Use ONLY these facts and add nothing else:\n"
+        f"Appearance: {facts['appearance']}\n"
+        f"Sound: {facts['sound']}\n"
+        f"Fun fact: {facts['fun_fact']}"
     )
     response = requests.post(
         OLLAMA_URL,
@@ -51,6 +63,10 @@ def field_note(bird):
 
 
 def main():
+    if len(sys.argv) < 2:
+        print("Usage: python identify.py <audio file>")
+        return
+
     audio_file = sys.argv[1]
     bird = identify(audio_file)
     if bird is None:
@@ -59,6 +75,7 @@ def main():
 
     print(f"\nHeard: {bird['common']} ({bird['scientific']})")
     print(f"Detected in {bird['detections']} clips, best confidence {bird['confidence']:.0%}\n")
+
     try:
         print(field_note(bird))
     except requests.exceptions.ConnectionError:
