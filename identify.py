@@ -1,4 +1,5 @@
 import json
+import datetime
 import sys
 
 import birdnet
@@ -61,6 +62,28 @@ def field_note(bird):
     response.raise_for_status()
     return response.json()["response"].strip()
 
+LIFE_LIST_FILE = "life_list.json"
+
+def update_life_list(bird):
+    try:
+        with open(LIFE_LIST_FILE, encoding="utf-8") as f:
+            life_list = json.load(f)
+    except FileNotFoundError:
+        life_list = {}
+
+    today = datetime.date.today().isoformat()
+    entry = life_list.get(bird["scientific"])
+    is_new = entry is None
+    if is_new:
+        entry = {"common": bird["common"], "first_heard": today, "times_heard": 0}
+    entry["times_heard"] += 1
+    entry["last_heard"] = today
+    life_list[bird["scientific"]] = entry
+
+    with open(LIFE_LIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(life_list, f, indent=2, ensure_ascii=False)
+
+    return is_new, len(life_list)
 
 def main():
     if len(sys.argv) < 2:
@@ -75,7 +98,12 @@ def main():
 
     print(f"\nHeard: {bird['common']} ({bird['scientific']})")
     print(f"Detected in {bird['detections']} clips, best confidence {bird['confidence']:.0%}\n")
-
+    is_new, total = update_life_list(bird)
+    if is_new:
+        print(f"New bird for your life list! You now have {total} species.\n")
+    else:
+        print(f"Already on your life list. You have {total} species.\n")
+    
     try:
         print(field_note(bird))
     except requests.exceptions.ConnectionError:
