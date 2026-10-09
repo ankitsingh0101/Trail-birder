@@ -1,8 +1,10 @@
 import os
 import tempfile
+import traceback
 
 import requests
 from flask import Flask, Response, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 import identify as tb
 
@@ -190,6 +192,14 @@ loadLifeList();
 </body>
 </html>
 """
+
+
+@app.errorhandler(Exception)
+def handle_error(e):
+    if isinstance(e, HTTPException):
+        return e
+    traceback.print_exc()
+    return jsonify(error=f"Server error: {e}"), 500
 
 
 @app.route("/")

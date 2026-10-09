@@ -32,7 +32,15 @@ def identify(audio_file):
     predictions = model.predict(audio_file)
     predictions.to_csv("predictions.csv")
 
-    df = pd.read_csv("predictions.csv")
+    # No bird detected at all can produce an empty file
+    try:
+        df = pd.read_csv("predictions.csv")
+    except pd.errors.EmptyDataError:
+        return None
+
+    if df.empty or "confidence" not in df.columns:
+        return None
+
     df = df[df["confidence"] >= MIN_CONFIDENCE]
     if df.empty:
         return None
@@ -56,7 +64,7 @@ def load_json(path):
     try:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
 
