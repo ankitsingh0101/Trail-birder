@@ -1,0 +1,32 @@
+{
+  "Eudynamys scolopaceus": {
+    "common": "Asian Koel",
+    "first_heard": "2026-10-08",
+    "times_heard": 4,
+    "last_heard": "2026-10-08"
+  },
+  "Acridotheres tristis": {
+    "common": "Common Myna",
+    "first_heard": "2026-10-08",
+    "times_heard": 1,
+    "last_heard": "2026-10-08"
+  },
+  "Copsychus fulicatus": {
+    "common": "Indian Robin",
+    "first_heard": "2026-10-08",
+    "times_heard": 1,
+    "last_heard": "2026-10-08"
+  },
+  "Passer domesticus": {
+    "common": "House Sparrow",
+    "first_heard": "2026-10-09",
+    "times_heard": 2,
+    "last_heard": "2026-10-09"
+  },
+  "Cinnyris asiaticus": {
+    "common": "Purple Sunbird",
+    "first_heard": "2026-10-09",
+    "times_heard": 1,
+    "last_heard": "2026-10-09"
+  }
+}

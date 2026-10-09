@@ -13,5 +13,20 @@
     "appearance": "Males are black with a white shoulder patch and a chestnut patch under the tail. Females are brown.",
     "sound": "A clear, whistling song, often sung from a perch with the tail cocked up.",
     "fun_fact": "It often holds its tail upright and flicks it while hopping on the ground."
+  },
+  "Passer domesticus": {
+    "appearance": "Males have a grey crown and a black bib. Females are plain brown and buff.",
+    "sound": "A simple, repeated cheeping and chirping, often from groups near buildings.",
+    "fun_fact": "House Sparrows live close to people and nest in gaps in walls and roofs."
+  },
+  "Psittacula krameri": {
+    "appearance": "A bright green parakeet with a long tail and a red bill. Males have a black and pink ring around the neck.",
+    "sound": "Loud, sharp, screeching calls, often given in flight.",
+    "fun_fact": "Flocks gather at dusk to roost together in noisy groups."
+  },
+  "Cinnyris asiaticus": {
+    "appearance": "A tiny bird with a thin curved bill. Breeding males look glossy purple-black, while females are olive-brown above and yellowish below.",
+    "sound": "Sharp, high-pitched 'chwee' notes, repeated in a lively, ringing song.",
+    "fun_fact": "Sunbirds drink flower nectar and often perch on a flower to feed."
   }
 }

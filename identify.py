@@ -1,6 +1,8 @@
-import json
 import datetime
+import hashlib
+import json
 import sys
+from urllib.parse import quote
 
 import birdnet
 import pandas as pd
@@ -9,10 +11,24 @@ import requests
 MIN_CONFIDENCE = 0.5
 OLLAMA_URL = "http://localhost:11434/api/generate"
 OLLAMA_MODEL = "gemma3:4b"
+LIFE_LIST_FILE = "life_list.json"
+FACTS_FILE = "facts.json"
+CACHE_FILE = "facts_cache.json"
+NOTES_FILE = "notes_cache.json"
+WIKI_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{}"
+
+_model = None
+
+
+def get_model():
+    global _model
+    if _model is None:
+        _model = birdnet.load("acoustic", "3.0", "onnx")
+    return _model
 
 
 def identify(audio_file):
-    model = birdnet.load("acoustic", "3.0", "onnx")
+    model = get_model()
     predictions = model.predict(audio_file)
     predictions.to_csv("predictions.csv")
 
@@ -36,40 +52,21 @@ def identify(audio_file):
     }
 
 
-def load_facts():
-    with open("facts.json", encoding="utf-8") as f:
-        return json.load(f)
+def load_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
 
 
-def field_note(bird):
-    facts = load_facts().get(bird["scientific"])
-    if facts is None:
-        return "(No verified facts for this species yet, so no field note.)"
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-    prompt = (
-        f"You are a friendly field guide. Write 3 short, warm sentences about "
-        f"the {bird['common']} for a birder who just heard it. "
-        f"Use ONLY these facts and add nothing else:\n"
-        f"Appearance: {facts['appearance']}\n"
-        f"Sound: {facts['sound']}\n"
-        f"Fun fact: {facts['fun_fact']}"
-    )
-    response = requests.post(
-        OLLAMA_URL,
-        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
-        timeout=300,
-    )
-    response.raise_for_status()
-    return response.json()["response"].strip()
-
-LIFE_LIST_FILE = "life_list.json"
 
 def update_life_list(bird):
-    try:
-        with open(LIFE_LIST_FILE, encoding="utf-8") as f:
-            life_list = json.load(f)
-    except FileNotFoundError:
-        life_list = {}
+    life_list = load_json(LIFE_LIST_FILE)
 
     today = datetime.date.today().isoformat()
     entry = life_list.get(bird["scientific"])
@@ -80,10 +77,98 @@ def update_life_list(bird):
     entry["last_heard"] = today
     life_list[bird["scientific"]] = entry
 
-    with open(LIFE_LIST_FILE, "w", encoding="utf-8") as f:
-        json.dump(life_list, f, indent=2, ensure_ascii=False)
-
+    save_json(LIFE_LIST_FILE, life_list)
     return is_new, len(life_list)
+
+
+def fetch_wikipedia(bird):
+    headers = {"User-Agent": "TrailBirder/1.0 (open-source hackathon project)"}
+    for name in (bird["scientific"], bird["common"]):
+        url = WIKI_URL.format(quote(name.replace(" ", "_")))
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+        except requests.exceptions.RequestException:
+            return None
+        if r.status_code != 200:
+            continue
+        data = r.json()
+        if data.get("type") == "standard" and data.get("extract"):
+            return {
+                "extract": data["extract"],
+                "source": data["content_urls"]["desktop"]["page"],
+            }
+    return None
+
+
+def get_facts(bird):
+    # 1. Hand-verified facts always win
+    verified = load_json(FACTS_FILE).get(bird["scientific"])
+    if verified:
+        return verified
+
+    # 2. Previously fetched facts (works offline)
+    cache = load_json(CACHE_FILE)
+    if bird["scientific"] in cache:
+        return cache[bird["scientific"]]
+
+    # 3. Fetch once from Wikipedia, then cache
+    fetched = fetch_wikipedia(bird)
+    if fetched:
+        cache[bird["scientific"]] = fetched
+        save_json(CACHE_FILE, cache)
+    return fetched
+
+
+def field_note(bird):
+    facts = get_facts(bird)
+    if facts is None:
+        return "(No facts found for this species. Connect to the internet once to fetch them.)"
+
+    # Fingerprint of the facts used: if they change, the cached note is stale
+    fingerprint = hashlib.md5(
+        json.dumps(facts, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+    notes = load_json(NOTES_FILE)
+    cached = notes.get(bird["scientific"])
+    if isinstance(cached, dict) and cached.get("fingerprint") == fingerprint:
+        return cached["note"]
+
+    intro = (
+        f"You are a friendly field guide. Write 3 short, warm sentences about "
+        f"the {bird['common']} for a birder who just heard it. "
+        f"Start directly with the bird, with no greeting and no 'Okay'. "
+    )
+
+    if "extract" in facts:
+        prompt = (
+            intro
+            + "Use ONLY information from this text and add nothing else:\n"
+            + facts["extract"]
+        )
+        suffix = f"\n\n(Auto-fetched from {facts['source']}, not hand-verified.)"
+    else:
+        prompt = (
+            intro
+            + "Use ONLY these facts and add nothing else:\n"
+            + f"Appearance: {facts['appearance']}\n"
+            + f"Sound: {facts['sound']}\n"
+            + f"Fun fact: {facts['fun_fact']}"
+        )
+        suffix = ""
+
+    response = requests.post(
+        OLLAMA_URL,
+        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+        timeout=300,
+    )
+    response.raise_for_status()
+    note = response.json()["response"].strip() + suffix
+
+    notes[bird["scientific"]] = {"fingerprint": fingerprint, "note": note}
+    save_json(NOTES_FILE, notes)
+    return note
+
 
 def main():
     if len(sys.argv) < 2:
@@ -98,12 +183,13 @@ def main():
 
     print(f"\nHeard: {bird['common']} ({bird['scientific']})")
     print(f"Detected in {bird['detections']} clips, best confidence {bird['confidence']:.0%}\n")
+
     is_new, total = update_life_list(bird)
     if is_new:
         print(f"New bird for your life list! You now have {total} species.\n")
     else:
         print(f"Already on your life list. You have {total} species.\n")
-    
+
     try:
         print(field_note(bird))
     except requests.exceptions.ConnectionError:
